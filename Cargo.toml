@@ -1,0 +1,10 @@
+[package]
+name = "zip_clone"
+version = "0.1.0"
+edition = "2018"
+description = "Zip an iterator to a repeately cloned object"
+license = "MIT OR Apache-2.0"
+categories = ["rust-patterns"]
+keywords = ["iterator", "clone"]
+repository = "https://github.com/jongiddy/zip_clone"
+rust-version = "1.31.1"
