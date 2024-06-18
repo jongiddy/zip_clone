@@ -103,6 +103,88 @@ where
             _ => None,
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.iter.count()
+    }
+
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        match (self.cloned.take(), self.iter.last()) {
+            (Some(cloned), Some(item)) => {
+                // iterator is fully consumed so no need to replace clone
+                Some((item, cloned))
+            }
+            _ => None,
+        }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        match (self.cloned.take(), self.iter.nth(n)) {
+            (Some(cloned), Some(item)) => {
+                if self.iter.peek().is_some() {
+                    self.cloned = Some(cloned.clone());
+                }
+                Some((item, cloned))
+            }
+            _ => None,
+        }
+    }
+}
+
+impl<I, C> DoubleEndedIterator for ZipCloneIter<I, C>
+where
+    I: DoubleEndedIterator,
+    C: Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match (self.cloned.take(), self.iter.next_back()) {
+            (Some(cloned), Some(item)) => {
+                if self.iter.peek().is_some() {
+                    self.cloned = Some(cloned.clone());
+                }
+                Some((item, cloned))
+            }
+            _ => None,
+        }
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        match (self.cloned.take(), self.iter.nth_back(n)) {
+            (Some(cloned), Some(item)) => {
+                if self.iter.peek().is_some() {
+                    self.cloned = Some(cloned.clone());
+                }
+                Some((item, cloned))
+            }
+            _ => None,
+        }
+    }
+}
+
+impl<I, C> ExactSizeIterator for ZipCloneIter<I, C>
+where
+    I: ExactSizeIterator,
+    C: Clone,
+{
+}
+
+// `ZipCloneIter` is fused because, once the clone is removed and not replaced,
+// it will always return `None` for subsequent calls.
+impl<I, C> std::iter::FusedIterator for ZipCloneIter<I, C>
+where
+    I: Iterator,
+    C: Clone,
+{
 }
 
 #[cfg(test)]
@@ -111,37 +193,19 @@ mod tests {
 
     use crate::zip_clone;
 
-    #[test]
-    fn test_zip_clone() {
-        struct Clonable<'a> {
-            count: &'a AtomicU32,
+    struct Clonable<'a> {
+        count: &'a AtomicU32,
+    }
+    impl<'a> Clone for Clonable<'a> {
+        fn clone(&self) -> Self {
+            let count = self.count;
+            count.fetch_add(1, Ordering::Relaxed);
+            Self { count }
         }
-        impl<'a> Clone for Clonable<'a> {
-            fn clone(&self) -> Self {
-                let count = self.count;
-                count.fetch_add(1, Ordering::Relaxed);
-                Self { count }
-            }
-        }
-        let iter = 1..6;
-        let count = AtomicU32::new(0);
-        let cloned = Clonable { count: &count };
-        assert_eq!(zip_clone(iter, cloned).count(), 5);
-        assert_eq!(count.load(Ordering::Relaxed), 4);
     }
 
     #[test]
     fn test_zip_repeat() {
-        struct Clonable<'a> {
-            count: &'a AtomicU32,
-        }
-        impl<'a> Clone for Clonable<'a> {
-            fn clone(&self) -> Self {
-                let count = self.count;
-                count.fetch_add(1, Ordering::Relaxed);
-                Self { count }
-            }
-        }
         let iter = 1..6;
         let count = AtomicU32::new(0);
         let cloned = Clonable { count: &count };
@@ -150,5 +214,33 @@ mod tests {
             5
         );
         assert_eq!(count.load(Ordering::Relaxed), 5);
+    }
+
+    #[test]
+    fn test_zip_clone() {
+        let iter = 1..6;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        // Use map to
+        assert_eq!(zip_clone(iter, cloned).map(|_| ()).count(), 5);
+        assert_eq!(count.load(Ordering::Relaxed), 4);
+    }
+
+    #[test]
+    fn test_zip_count() {
+        let iter = 1..6;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).count(), 5);
+        assert_eq!(count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_zip_last() {
+        let iter = 1..6;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).last().unwrap().0, 5);
+        assert_eq!(count.load(Ordering::Relaxed), 0);
     }
 }

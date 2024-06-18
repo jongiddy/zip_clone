@@ -13,20 +13,30 @@ used after the iteration.
 
 Instead of cloning a value 10 times using:
 ```rust
-let v = vec![];
+let mut v = vec![];
 let s = String::from("Hello");
-for i in 0..10 {
-    let s = s.clone();
-    vec.push(s);
+for _ in 0..10 {
+    v.push(s.clone());
 }
 ```
 clone the value 9 times using:
 ```rust
 use zip_clone::ZipClone as _;
 
-let v = vec![];
+let mut v = vec![];
 let s = String::from("Hello");
-for (i, s) in (0..10).zip_clone(s) {
-    vec.push(s);
+for (_, s) in (0..10).zip_clone(s) {
+    v.push(s);
 }
+```
+
+The object may be cloned even fewer times if items are skipped. For example,
+`last()` consumes the iterator but returns the last value without cloning the
+object for intermediate values:
+```rust
+use zip_clone::ZipClone as _;
+
+let mut v = vec![];
+let s = String::from("Hello");
+v.push((0..10).zip_clone(s).last());
 ```
