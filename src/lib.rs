@@ -111,7 +111,20 @@ where
             cloned: Some(cloned),
         }
     }
+
+    fn respond(&mut self, item: Option<I::Item>) -> Option<<Self as Iterator>::Item> {
+        match (item, self.cloned.take()) {
+            (Some(item), Some(cloned)) => {
+                if self.iter.peek().is_some() {
+                    self.cloned = Some(cloned.clone());
+                }
+                Some((item, cloned))
+            }
+            _ => None,
+        }
+    }
 }
+
 impl<I, C> Iterator for ZipCloneIter<I, C>
 where
     I: Iterator,
@@ -120,15 +133,8 @@ where
     type Item = (I::Item, C);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match (self.cloned.take(), self.iter.next()) {
-            (Some(cloned), Some(item)) => {
-                if self.iter.peek().is_some() {
-                    self.cloned = Some(cloned.clone());
-                }
-                Some((item, cloned))
-            }
-            _ => None,
-        }
+        let item = self.iter.next();
+        self.respond(item)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -146,8 +152,8 @@ where
     where
         Self: Sized,
     {
-        match (self.cloned.take(), self.iter.last()) {
-            (Some(cloned), Some(item)) => {
+        match (self.iter.last(), self.cloned.take()) {
+            (Some(item), Some(cloned)) => {
                 // iterator is fully consumed so no need to replace clone
                 Some((item, cloned))
             }
@@ -156,15 +162,8 @@ where
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        match (self.cloned.take(), self.iter.nth(n)) {
-            (Some(cloned), Some(item)) => {
-                if self.iter.peek().is_some() {
-                    self.cloned = Some(cloned.clone());
-                }
-                Some((item, cloned))
-            }
-            _ => None,
-        }
+        let item = self.iter.nth(n);
+        self.respond(item)
     }
 }
 
@@ -174,27 +173,13 @@ where
     C: Clone,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        match (self.cloned.take(), self.iter.next_back()) {
-            (Some(cloned), Some(item)) => {
-                if self.iter.peek().is_some() {
-                    self.cloned = Some(cloned.clone());
-                }
-                Some((item, cloned))
-            }
-            _ => None,
-        }
+        let item = self.iter.next_back();
+        self.respond(item)
     }
 
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        match (self.cloned.take(), self.iter.nth_back(n)) {
-            (Some(cloned), Some(item)) => {
-                if self.iter.peek().is_some() {
-                    self.cloned = Some(cloned.clone());
-                }
-                Some((item, cloned))
-            }
-            _ => None,
-        }
+        let item = self.iter.nth_back(n);
+        self.respond(item)
     }
 }
 
