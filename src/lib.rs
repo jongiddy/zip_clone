@@ -1,4 +1,4 @@
-//! Zip an iterator to a repeately cloned object.
+//! Zip an iterator to a repeatedly cloned object.
 //!
 //! Pass an owned object that implements `Clone` to create an iterator that zips
 //! the original iterator with clones of the object.
@@ -17,7 +17,7 @@
 //! }
 //! ```
 
-/// Zip an iterator to a repeately cloned object.
+/// Zip an iterator to a repeatedly cloned object.
 ///
 /// One iteration returns the original object, thus using one fewer clones than
 /// the otherwise equivalent `iter.zip(repeat_with(|| cloned.clone()))`.
@@ -32,29 +32,17 @@
 ///     assert_eq!(s, String::from("Hello"));
 /// }
 /// ```
-pub fn zip_clone<I, C>(iter: I, cloned: C) -> ZipCloneIter<I, C>
+pub fn zip_clone<I, C>(iter: I, cloned: C) -> impl Iterator<Item = (I::Item, C)>
 where
     I: Iterator,
     C: Clone,
 {
-    ZipCloneIter {
-        iter: iter.peekable(),
-        cloned: Some(cloned),
-    }
+    iter.zip_clone(cloned)
 }
 
-/// Trait to zip an iterator to a repeately cloned object.
+/// Trait to zip an iterator to a repeatedly cloned object.
 pub trait ZipClone: Iterator + Sized {
-    fn zip_clone<C>(self, cloned: C) -> ZipCloneIter<Self, C>
-    where
-        C: Clone;
-}
-
-impl<I> ZipClone for I
-where
-    I: Iterator,
-{
-    /// Zip an iterator to a repeately cloned object.
+    /// Zip an iterator to a repeatedly cloned object.
     ///
     /// One iteration returns the original object, thus using one fewer clones than
     /// the otherwise equivalent `iter.zip(repeat_with(|| cloned.clone()))`.
@@ -69,11 +57,38 @@ where
     ///     assert_eq!(s, String::from("Hello"));
     /// }
     /// ```
-    fn zip_clone<C>(self, cloned: C) -> ZipCloneIter<Self, C>
+    fn zip_clone<C>(self, cloned: C) -> impl Iterator<Item = (Self::Item, C)>
     where
         C: Clone,
     {
-        zip_clone(self, cloned)
+        ZipCloneIter::new(self, cloned)
+    }
+}
+
+impl<I> ZipClone for I
+where
+    I: Iterator,
+{
+    /// Zip an iterator to a repeatedly cloned object.
+    ///
+    /// One iteration returns the original object, thus using one fewer clones than
+    /// the otherwise equivalent `iter.zip(repeat_with(|| cloned.clone()))`.
+    ///
+    /// Example:
+    /// ```rust
+    /// use zip_clone::ZipClone;
+    ///
+    /// let s = String::from("Hello");
+    /// let iter = 0..10;
+    /// for (i, s) in iter.zip_clone(s) {
+    ///     assert_eq!(s, String::from("Hello"));
+    /// }
+    /// ```
+    fn zip_clone<C>(self, cloned: C) -> impl Iterator<Item = (Self::Item, C)>
+    where
+        C: Clone,
+    {
+        ZipCloneIter::new(self, cloned)
     }
 }
 
@@ -85,6 +100,18 @@ where
     cloned: Option<C>,
 }
 
+impl<I, C> ZipCloneIter<I, C>
+where
+    I: Iterator,
+    C: Clone,
+{
+    fn new(iter: I, cloned: C) -> Self {
+        Self {
+            iter: iter.peekable(),
+            cloned: Some(cloned),
+        }
+    }
+}
 impl<I, C> Iterator for ZipCloneIter<I, C>
 where
     I: Iterator,
@@ -191,12 +218,12 @@ where
 mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    use crate::zip_clone;
+    use crate::{zip_clone, ZipClone};
 
     struct Clonable<'a> {
         count: &'a AtomicU32,
     }
-    impl<'a> Clone for Clonable<'a> {
+    impl Clone for Clonable<'_> {
         fn clone(&self) -> Self {
             let count = self.count;
             count.fetch_add(1, Ordering::Relaxed);
@@ -242,5 +269,20 @@ mod tests {
         let cloned = Clonable { count: &count };
         assert_eq!(zip_clone(iter, cloned).last().unwrap().0, 5);
         assert_eq!(count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_mut_slice() {
+        let mut v = vec![1, 2, 3];
+        let iter = v.as_mut_slice().iter_mut();
+        let s = iter
+            .zip_clone(String::new())
+            .map(|(i, s)| {
+                *i = 1;
+                (i, s)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(&1, s[1].0);
+        assert_eq!(&v[1], &1);
     }
 }
