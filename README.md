@@ -43,11 +43,23 @@ for (city, mut message) in home_city.split(';').zip_clone(s) {
 }
 ```
 
-`zip_clone` avoids cloning if items are skipped. The following code uses the
-original `String` for the single value produced, avoiding any cloning.
+`zip_clone` tries to avoid cloning if items are skipped. The following code uses
+the original `String` for the single value produced, avoiding any cloning.
 ```rust
 use zip_clone::ZipClone as _;
 
 let s = String::from("Hello");
 let _ = (0..10).zip_clone(s).last();
+```
+
+
+However, if possible, it is better to filter the iterator before adding `zip_clone`:
+```rust
+use zip_clone::ZipClone as _;
+
+let mut v = vec![String::new(); 10];
+let s = String::from("Hello");
+for (i, s) in (0..10).take(5).zip_clone(s) {
+    v[i] = s;
+}
 ```

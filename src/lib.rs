@@ -32,7 +32,7 @@
 ///     assert_eq!(s, String::from("Hello"));
 /// }
 /// ```
-pub fn zip_clone<I, C>(iter: I, cloned: C) -> impl Iterator<Item = (I::Item, C)>
+pub fn zip_clone<I, C>(iter: I, cloned: C) -> ZipCloneIter<I, C>
 where
     I: Iterator,
     C: Clone,
@@ -57,7 +57,7 @@ pub trait ZipClone: Iterator + Sized {
     ///     assert_eq!(s, String::from("Hello"));
     /// }
     /// ```
-    fn zip_clone<C>(self, cloned: C) -> impl Iterator<Item = (Self::Item, C)>
+    fn zip_clone<C>(self, cloned: C) -> ZipCloneIter<Self, C>
     where
         C: Clone,
     {
@@ -84,7 +84,7 @@ where
     ///     assert_eq!(s, String::from("Hello"));
     /// }
     /// ```
-    fn zip_clone<C>(self, cloned: C) -> impl Iterator<Item = (Self::Item, C)>
+    fn zip_clone<C>(self, cloned: C) -> ZipCloneIter<Self, C>
     where
         C: Clone,
     {
