@@ -220,6 +220,26 @@ where
         let item = self.iter.nth(n);
         self.respond(item)
     }
+
+    fn find<P>(&mut self, mut predicate: P) -> Option<Self::Item>
+    where
+        Self: Sized,
+        P: FnMut(&Self::Item) -> bool,
+    {
+        match (self.iter.next(), self.cloned.take()) {
+            (Some(item), Some(cloned)) => {
+                let mut tuple = (item, cloned);
+                while !predicate(&tuple) {
+                    tuple.0 = self.iter.next()?;
+                }
+                if self.iter.peek().is_some() {
+                    self.cloned = Some(tuple.1.clone());
+                }
+                Some(tuple)
+            }
+            _ => None,
+        }
+    }
 }
 
 impl<I, C> DoubleEndedIterator for ZipCloneIter<I, C>
@@ -235,6 +255,26 @@ where
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         let item = self.iter.nth_back(n);
         self.respond(item)
+    }
+
+    fn rfind<P>(&mut self, mut predicate: P) -> Option<Self::Item>
+    where
+        Self: Sized,
+        P: FnMut(&Self::Item) -> bool,
+    {
+        match (self.iter.next_back(), self.cloned.take()) {
+            (Some(item), Some(cloned)) => {
+                let mut tuple = (item, cloned);
+                while !predicate(&tuple) {
+                    tuple.0 = self.iter.next_back()?;
+                }
+                if self.iter.peek().is_some() {
+                    self.cloned = Some(tuple.1.clone());
+                }
+                Some(tuple)
+            }
+            _ => None,
+        }
     }
 }
 
@@ -308,6 +348,88 @@ mod tests {
         let count = AtomicU32::new(0);
         let cloned = Clonable { count: &count };
         assert_eq!(zip_clone(iter, cloned).last().unwrap().0, 5);
+        assert_eq!(count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_zip_find_first() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).find(|_| true).unwrap().0, 1);
+        // return one clone with result, keep one clone for further iteration
+        assert_eq!(count.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_zip_find_mid() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).find(|x| x.0 == 3).unwrap().0, 3);
+        // return one clone with result, keep one clone for further iteration
+        assert_eq!(count.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_zip_find_last() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).find(|x| x.0 == 5).unwrap().0, 5);
+        // return one clone with result, no other clone needed
+        assert_eq!(count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    #[allow(clippy::search_is_some)]
+    fn test_zip_find_not_found() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert!(zip_clone(iter, cloned).find(|_| false).is_none());
+        // clone not required
+        assert_eq!(count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_zip_rfind_first() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).rfind(|_| true).unwrap().0, 5);
+        // return one clone with result, keep one clone for further iteration
+        assert_eq!(count.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_zip_rfind_mid() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).rfind(|x| x.0 == 3).unwrap().0, 3);
+        // return one clone with result, keep one clone for further iteration
+        assert_eq!(count.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_zip_rfind_last() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert_eq!(zip_clone(iter, cloned).rfind(|x| x.0 == 1).unwrap().0, 1);
+        // return one clone with result, no other clone needed
+        assert_eq!(count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    #[allow(clippy::search_is_some)]
+    fn test_zip_rfind_not_found() {
+        let iter = 1..=5;
+        let count = AtomicU32::new(0);
+        let cloned = Clonable { count: &count };
+        assert!(zip_clone(iter, cloned).rfind(|_| false).is_none());
+        // clone not required
         assert_eq!(count.load(Ordering::Relaxed), 0);
     }
 
