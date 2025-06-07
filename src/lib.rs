@@ -4,15 +4,11 @@
 //! ```rust
 //! use zip_clone::ZipClone as _;
 //!
-//! let iter = vec![2, 3, 4].into_iter();
-//! assert_eq!(
-//!     iter.zip_clone("abc".to_string()).collect::<Vec<_>>(),
-//!     vec![
-//!         (2, "abc".to_string()),
-//!         (3, "abc".to_string()),
-//!         (4, "abc".to_string()),
-//!     ]
-//! );
+//! let mut iter = vec![2, 3, 4].into_iter().zip_clone("abc".to_owned());
+//! assert_eq!(iter.next(), Some((2, "abc".to_owned())));
+//! assert_eq!(iter.next(), Some((3, "abc".to_owned())));
+//! assert_eq!(iter.next(), Some((4, "abc".to_owned())));
+//! assert_eq!(iter.next(), None);
 //! ```
 //!
 //! One iteration returns the original value, using one fewer clones than
@@ -81,11 +77,11 @@
 /// ```rust
 /// use zip_clone::zip_clone;
 ///
-/// let s = String::from("Hello");
-/// let iter = 0..10;
-/// for (i, s) in zip_clone(iter, s) {
-///     assert_eq!(s, String::from("Hello"));
-/// }
+/// let mut iter = zip_clone(vec![2, 3, 4].into_iter(), "abc".to_owned());
+/// assert_eq!(iter.next(), Some((2, "abc".to_owned())));
+/// assert_eq!(iter.next(), Some((3, "abc".to_owned())));
+/// assert_eq!(iter.next(), Some((4, "abc".to_owned())));
+/// assert_eq!(iter.next(), None);
 /// ```
 pub fn zip_clone<I, C>(iter: I, cloned: C) -> ZipCloneIter<I, C>
 where
@@ -104,13 +100,13 @@ pub trait ZipClone: Iterator + Sized {
     ///
     /// Example:
     /// ```rust
-    /// use zip_clone::ZipClone;
+    /// use zip_clone::ZipClone as _;
     ///
-    /// let s = String::from("Hello");
-    /// let iter = 0..10;
-    /// for (i, s) in iter.zip_clone(s) {
-    ///     assert_eq!(s, String::from("Hello"));
-    /// }
+    /// let mut iter = vec![2, 3, 4].into_iter().zip_clone("abc".to_owned());
+    /// assert_eq!(iter.next(), Some((2, "abc".to_owned())));
+    /// assert_eq!(iter.next(), Some((3, "abc".to_owned())));
+    /// assert_eq!(iter.next(), Some((4, "abc".to_owned())));
+    /// assert_eq!(iter.next(), None);
     /// ```
     fn zip_clone<C>(self, cloned: C) -> ZipCloneIter<Self, C>
     where
@@ -131,13 +127,13 @@ where
     ///
     /// Example:
     /// ```rust
-    /// use zip_clone::ZipClone;
+    /// use zip_clone::ZipClone as _;
     ///
-    /// let s = String::from("Hello");
-    /// let iter = 0..10;
-    /// for (i, s) in iter.zip_clone(s) {
-    ///     assert_eq!(s, String::from("Hello"));
-    /// }
+    /// let mut iter = vec![2, 3, 4].into_iter().zip_clone("abc".to_owned());
+    /// assert_eq!(iter.next(), Some((2, "abc".to_owned())));
+    /// assert_eq!(iter.next(), Some((3, "abc".to_owned())));
+    /// assert_eq!(iter.next(), Some((4, "abc".to_owned())));
+    /// assert_eq!(iter.next(), None);
     /// ```
     fn zip_clone<C>(self, cloned: C) -> ZipCloneIter<Self, C>
     where

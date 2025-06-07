@@ -6,15 +6,11 @@ Returns an iterator of 2-tuples containing an iterator item and a clone of the v
 ```rust
 use zip_clone::ZipClone as _;
 
-let iter = vec![2, 3, 4].into_iter();
-assert_eq!(
-    iter.zip_clone("abc".to_string()).collect::<Vec<_>>(),
-    vec![
-        (2, "abc".to_string()),
-        (3, "abc".to_string()),
-        (4, "abc".to_string()),
-    ]
-);
+let mut iter = vec![2, 3, 4].into_iter().zip_clone("abc".to_owned());
+assert_eq!(iter.next(), Some((2, "abc".to_owned())));
+assert_eq!(iter.next(), Some((3, "abc".to_owned())));
+assert_eq!(iter.next(), Some((4, "abc".to_owned())));
+assert_eq!(iter.next(), None);
 ```
 
 One iteration returns the original value, using one fewer clones than
